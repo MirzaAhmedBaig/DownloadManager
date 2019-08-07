@@ -1,5 +1,6 @@
-package com.mab.downloadmanager.network
+package com.mab.downloadmanager.network.retrofit
 
+import com.mab.downloadmanager.network.OnDownloadUpdateListener
 import okhttp3.MediaType
 import okhttp3.ResponseBody
 import okio.*
@@ -13,7 +14,7 @@ import java.io.IOException
  */
 class ProgressResponseBody(
     private val responseBody: ResponseBody,
-    private val progressListener: OnFileDownloadListener?
+    private val progressListener: OnDownloadUpdateListener?
 ) : ResponseBody() {
     private var bufferedSource: BufferedSource? = null
 
@@ -26,9 +27,7 @@ class ProgressResponseBody(
     }
 
     override fun source(): BufferedSource? {
-        if (bufferedSource == null) {
-            bufferedSource = Okio.buffer(source(responseBody.source()))
-        }
+        bufferedSource = bufferedSource ?: Okio.buffer(source(responseBody.source()))
         return bufferedSource
     }
 

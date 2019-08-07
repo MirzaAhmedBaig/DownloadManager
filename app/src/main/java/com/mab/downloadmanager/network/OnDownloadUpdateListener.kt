@@ -7,7 +7,7 @@ package com.mab.downloadmanager.network
  * mirza@avantari.org
  */
 
-interface OnFileDownloadListener {
+interface OnDownloadUpdateListener {
     fun onFileDownloadedError(message: String?)
     fun onFileDownloadUpdate(percent: Float, totalSize: Long)
     fun onFileCopyFinished()

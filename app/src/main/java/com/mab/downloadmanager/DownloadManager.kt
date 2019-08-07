@@ -1,14 +1,13 @@
 package com.mab.downloadmanager
 
 import android.content.Context
-import android.util.Log
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
 import androidx.work.*
 import com.mab.downloadmanager.constants.StatusCode
-import com.mab.downloadmanager.models.DownloadStatus
-import com.mab.downloadmanager.models.LiveDataHelper
+import com.mab.downloadmanager.data.DownloadStatus
+import com.mab.downloadmanager.data.LiveDataHelper
+import java.io.File
 
 
 /**
@@ -17,9 +16,9 @@ import com.mab.downloadmanager.models.LiveDataHelper
  * mirza@avantari.org
  */
 
-object DownloadManager {
+class DownloadManager(private val context: Context) {
 
-    private val TAG = "DownloadManager"
+    private var downloadUpdateListener: DownloadUpdateListener? = null
 
     private val workMangersConstraints by lazy {
         Constraints.Builder()
@@ -27,12 +26,11 @@ object DownloadManager {
             .build()
     }
 
-    fun downloadFile(
-        context: Context,
-        remoteUrl: String, outputFilePath: String, onProgress: (progress: Float) -> Unit,
-        onComplete: () -> Unit,
-        onFailed: (String?) -> Unit
-    ) {
+    fun setListener(downloadUpdateListener: DownloadUpdateListener) {
+        this.downloadUpdateListener = downloadUpdateListener
+    }
+
+    fun downloadFile(remoteUrl: String, outputFilePath: String) {
 
         val data = workDataOf(Pair("url", remoteUrl), Pair("path", outputFilePath))
 
@@ -47,62 +45,27 @@ object DownloadManager {
                 Observer<DownloadStatus> {
                     when (it.status) {
                         StatusCode.DOWNLOADING -> {
-                            Log.d("#TAG", "Progress : ${it.progress}")
-                            onProgress(it.progress)
+                            downloadUpdateListener?.onDownloadingUpdate(it.progress)
                         }
                         StatusCode.DOWNLOAD_SUCCESS -> {
-                            onProgress(it.progress)
-                            onComplete()
+                            downloadUpdateListener?.onDownloadingUpdate(it.progress)
+                            downloadUpdateListener?.onDownloadingFinished()
                         }
                         StatusCode.DOWNLOAD_FAILED -> {
-                            onFailed(it.errorMsg)
+                            downloadUpdateListener?.onDownloadingFailed(it.errorMsg)
+                            deleteFile(outputFilePath)
                         }
                     }
                 }
             )
     }
 
-    fun downloadFiles(
-        context: Context,
-        remoteUrls: List<String>, outputFilePaths: List<String>, onProgress: (progress: Float) -> Unit,
-        onComplete: () -> Unit,
-        onFailed: (String?) -> Unit
-    ) {
+    fun downloadFiles(remoteUrls: List<String>, outputFilePaths: List<String>) {
 
         if (remoteUrls.size != outputFilePaths.size)
             throw Exception("input urls should be equal to output file paths")
 
-        var totalSize = 0
-        remoteUrls.forEachIndexed { index, url ->
-            FileHelper.getFileSize(url) {
-                totalSize += it
-                if (index == remoteUrls.lastIndex) {
-                    (context as AppCompatActivity).runOnUiThread {
-                        startMultipleDownloads(
-                            context,
-                            remoteUrls,
-                            outputFilePaths,
-                            totalSize,
-                            onProgress,
-                            onComplete,
-                            onFailed
-                        )
-                    }
-                }
-            }
-        }
-    }
 
-
-    private fun startMultipleDownloads(
-        context: Context,
-        remoteUrls: List<String>,
-        outputFilePaths: List<String>,
-        totalFileSize: Int,
-        onProgress: (progress: Float) -> Unit,
-        onComplete: () -> Unit,
-        onFailed: (String?) -> Unit
-    ) {
         val progressList = ArrayList<DownloadStatus>()
         val requestList = ArrayList<WorkRequest>()
         remoteUrls.forEachIndexed { index, url ->
@@ -124,29 +87,35 @@ object DownloadManager {
                     when (it.status) {
                         StatusCode.DOWNLOADING -> {
                             val progressIndex = getIndexOfProgress(it.id, progressList)
-                            Log.d(TAG, "Progress : ${it.progress} For : $progressIndex")
-                            progressList[progressIndex].progress = it.progress
-                            val progress = getProgress(progressList)
-                            Log.d(TAG, "AVG Progress : $progress")
-                            onProgress(progress)
+                            if (progressIndex >= 0) {
+                                progressList[progressIndex].progress = it.progress
+                                val progress = getProgress(progressList)
+                                downloadUpdateListener?.onDownloadingUpdate(progress)
+                                downloadUpdateListener?.onDownloadingUpdate(it.progress, progressIndex)
+                            }
                         }
                         StatusCode.DOWNLOAD_SUCCESS -> {
                             val progressIndex = getIndexOfProgress(it.id, progressList)
-                            progressList[progressIndex].progress = it.progress
-                            val progress = getProgress(progressList)
-                            Log.d(TAG, "DOWNLOAD_SUCCESS $progress ${progressList.map { it.progress }.average()}")
-                            if (isDownloadComplete(progressList)) {
-                                onProgress(100f)
-                                onComplete()
+                            if (progressIndex >= 0) {
+                                progressList[progressIndex].progress = it.progress
+                                if (isDownloadComplete(progressList)) {
+                                    downloadUpdateListener?.onDownloadingUpdate(100f)
+                                    remoteUrls.forEachIndexed { index, _ ->
+                                        downloadUpdateListener?.onDownloadingUpdate(100f, index)
+                                    }
+                                    downloadUpdateListener?.onDownloadingFinished()
+                                }
                             }
                         }
                         StatusCode.DOWNLOAD_FAILED -> {
-                            onFailed(it.errorMsg)
+                            downloadUpdateListener?.onDownloadingFailed(it.errorMsg)
+                            outputFilePaths.forEach {
+                                deleteFile(it)
+                            }
                         }
                     }
                 }
             )
-
     }
 
     private fun getIndexOfProgress(id: String, progressList: List<DownloadStatus>): Int {
@@ -162,4 +131,13 @@ object DownloadManager {
         return (progressList.map { it.progress }.average().toInt() == 100)
     }
 
+    private fun deleteFile(path: String) {
+        try {
+            val file = File(path)
+            if (file.exists() && file.isFile) {
+                file.delete()
+            }
+        } catch (e: java.lang.Exception) {
+        }
+    }
 }

@@ -1,4 +1,4 @@
-package com.mab.downloadmanager.models
+package com.mab.downloadmanager.data
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
@@ -11,27 +11,13 @@ import androidx.lifecycle.ViewModel
  * mirza@avantari.org
  */
 class LiveDataHelper : ViewModel() {
-    /*private val liveData by lazy {
-        MutableLiveData<DownloadStatus>()
-    }
-
-    fun getInstance(): MutableLiveData<DownloadStatus> {
-        return liveData
-    }
-
-    fun updateStatus(downloadStatus: DownloadStatus) {
-        this.liveData.postValue(downloadStatus)
-    }*/
-
-
     private val liveData = MediatorLiveData<DownloadStatus>()
 
     companion object {
         private var liveDataHelper: LiveDataHelper? = null
         @Synchronized
         fun getInstance(): LiveDataHelper {
-            if (liveDataHelper == null)
-                liveDataHelper = LiveDataHelper()
+            liveDataHelper = liveDataHelper ?: LiveDataHelper()
             return liveDataHelper!!
         }
     }
@@ -43,4 +29,6 @@ class LiveDataHelper : ViewModel() {
     fun observeStatus(): LiveData<DownloadStatus> {
         return liveData
     }
+
+
 }

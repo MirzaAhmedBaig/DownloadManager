@@ -1,5 +1,6 @@
-package com.mab.downloadmanager.network
+package com.mab.downloadmanager.network.retrofit
 
+import com.mab.downloadmanager.network.OnDownloadUpdateListener
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeUnit
  */
 object RetrofitClient {
 
-    fun getDownloadRetrofit(listener: OnFileDownloadListener): Retrofit {
+    fun getDownloadRetrofit(listener: OnDownloadUpdateListener): Retrofit {
         return Retrofit.Builder()
             .baseUrl("http://192.168.43.135/retro/")
             .addConverterFactory(GsonConverterFactory.create())
@@ -24,7 +25,7 @@ object RetrofitClient {
             .build()
     }
 
-    private fun getOkHttpDownloadClientBuilder(progressListener: OnFileDownloadListener?): OkHttpClient.Builder {
+    private fun getOkHttpDownloadClientBuilder(progressListener: OnDownloadUpdateListener?): OkHttpClient.Builder {
         val httpClientBuilder = OkHttpClient.Builder()
         httpClientBuilder.connectTimeout(20, TimeUnit.SECONDS)
         httpClientBuilder.writeTimeout(0, TimeUnit.SECONDS)
@@ -42,7 +43,12 @@ object RetrofitClient {
                     validListener = null
                 }
                 return originalResponse.newBuilder()
-                    .body(ProgressResponseBody(originalResponse.body()!!, validListener))
+                    .body(
+                        ProgressResponseBody(
+                            originalResponse.body()!!,
+                            validListener
+                        )
+                    )
                     .build()
             }
         })

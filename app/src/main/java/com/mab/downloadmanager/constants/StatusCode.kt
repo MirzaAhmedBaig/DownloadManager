@@ -9,5 +9,5 @@ package com.mab.downloadmanager.constants
 object StatusCode {
     const val DOWNLOAD_SUCCESS = 200
     const val DOWNLOADING = 1
-    const val DOWNLOAD_FAILED = 2
+    const val DOWNLOAD_FAILED = 500
 }

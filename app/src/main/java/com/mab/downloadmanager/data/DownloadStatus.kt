@@ -1,4 +1,4 @@
-package com.mab.downloadmanager.models
+package com.mab.downloadmanager.data
 
 
 /**

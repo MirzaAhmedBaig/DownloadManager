@@ -1,49 +1,82 @@
 package com.mab.downloadmanager
 
 import android.os.Bundle
-import android.util.Log
+import android.os.Environment
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
+import kotlin.math.roundToInt
 
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), DownloadUpdateListener {
 
     private val TAG = MainActivity::class.java.simpleName
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        button.setOnClickListener {
-            getFileInfo()
-//            startActivity(Intent(this, Main2Activity::class.java))
+
+        single_download.setOnClickListener {
+            downloadSingleFile()
+        }
+        multi_download.setOnClickListener {
+            downloadMultipleFiles()
         }
     }
 
-    val url = "https://file-examples.com/wp-content/uploads/2017/11/file_example_MP3_2MG.mp3"
-    val path1 by lazy {
-        File(getExternalFilesDir(null), "dem1.mp3").absolutePath
-    }
-    val path2 by lazy {
-        File(getExternalFilesDir(null), "dem2.mp3").absolutePath
-    }
-
-    private fun getFileInfo() {
-        DownloadManager.downloadFiles(
-            this,
-            listOf(url, "https://file-examples.com/wp-content/uploads/2017/11/file_example_MP3_1MG.mp3"),
-            listOf(path1, path2),
-            {
-                Log.d(TAG, "OnProgress : $it")
-                progress_bar.progress = it.toInt()
-                progress_value.text = it.toString()
-            },
-            {
-                Log.d(TAG, "OnComplete")
-            },
-            {
-                Log.d(TAG, "OnFailed : $it")
-            })
+    private val urls = listOf(
+        "http://www.noiseaddicts.com/samples_1w72b820/280.mp3",
+        "https://file-examples.com/wp-content/uploads/2017/11/file_example_MP3_1MG.mp3"
+    )
+    private val paths by lazy {
+        listOf(
+            File(Environment.getExternalStorageDirectory(), "firstFile.mp3").absolutePath,
+            File(getExternalFilesDir(null), "secondFile.mp3").absolutePath
+        )
     }
 
+    private fun downloadMultipleFiles() {
+        DownloadManager(this).apply {
+            downloadFiles(urls, paths)
+            setListener(this@MainActivity)
+        }
+    }
+
+    private fun downloadSingleFile() {
+        DownloadManager(this).apply {
+            downloadFile(urls[0], paths[0])
+            setListener(this@MainActivity)
+        }
+    }
+
+    override fun onDownloadingFailed(message: String?) {
+        Toast.makeText(this, "Error : $message", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDownloadingUpdate(percent: Float) {
+        progress_bar.progress = percent.roundToInt()
+        progress_value.text = "$percent%"
+    }
+
+    override fun onDownloadingFinished() {
+        Toast.makeText(this, "Downloading Completed", Toast.LENGTH_SHORT).show()
+
+    }
+
+    override fun onDownloadingUpdate(percent: Float, urlIndex: Int) {
+        progressArray[urlIndex] = percent
+        showMultiProgressStatus()
+
+    }
+
+    private val progressArray = ArrayList<Float>().apply {
+        add(0f)
+        add(0f)
+    }
+
+    private fun showMultiProgressStatus() {
+        progress_status.text =
+            "Progress for index 0 : ${progressArray[0]}%\n\nProgress for index 1 : ${progressArray[1]}%"
+    }
 
 }
